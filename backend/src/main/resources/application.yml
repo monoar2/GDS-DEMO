@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: gds-backend
+  threads:
+    virtual:
+      enabled: true          # Tomcat, @Async and scheduling all run on Java 21 virtual threads
+  datasource:
+    url: jdbc:h2:file:./data/gds;LOCK_TIMEOUT=10000;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 50
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  data:
+    redis:
+      repositories:
+        enabled: false     # Redis is used as a cache only; entities live in H2
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
+  cache:
+    type: redis               # a local in-memory level in front of Redis, see CacheConfig
+
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 200               # Tomcat's default; the ceiling on concurrent requests when virtual threads are off
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: gds-backend
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true   # latency buckets so Prometheus can compute p95/p99
+        gds.supplier.calls: true
+
+gds:
+  http:
+    max-concurrent-requests: 1000   # API requests in progress at once; past this they wait, then get a 503
+    queue-timeout: 1s
+  security:
+    # HS256 signing key for agent JWTs. Override with GDS_JWT_SECRET outside local development.
+    jwt-secret: ${GDS_JWT_SECRET:local-dev-only-secret-change-me-0123456789abcdef}
+    token-ttl: 8h
+  booking:
+    hold-time: 30m           # ticketing time limit: unticketed PNRs release their inventory after this
+    expiry-check: 15s
+  seed:
+    enabled: true
+    random-seed: 42          # same seed, same inventory, every time
+    days: 30                 # how many days of schedules and room/car inventory to generate
+    hotels-per-city: 6
+  cache:
+    reference-ttl: 6h
+    # Every booking, cancellation and hold expiry evicts the inventory it touched, so these TTLs only bound how
+    # long an entry that nothing changed stays around.
+    inventory-ttl: 5m        # in Redis, shared by every instance
+    local-ttl: 10s           # in each instance's memory; how stale another instance's bookings can look here
+  supplier:
+    # Simulated round trip to airline, hotel and car systems on every search. 0 locally; the load test
+    # sets it (for example GDS_SUPPLIER_LATENCY=100ms) to show what virtual threads do for blocking I/O.
+    latency: ${GDS_SUPPLIER_LATENCY:0ms}

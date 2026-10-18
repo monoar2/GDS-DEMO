@@ -1,0 +1,12 @@
+# Scrapes the backend's Micrometer metrics every 5 seconds.
+# "backend:8080" is the backend started by docker compose; "host.docker.internal:8080" is a backend you run
+# yourself (IDE or ./mvnw). Whichever is not running just shows as down.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: gds-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:8080", "host.docker.internal:8080"]

@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:gds-test;LOCK_TIMEOUT=10000;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+  cache:
+    type: simple
+
+gds:
+  seed:
+    days: 3
+    hotels-per-city: 2
